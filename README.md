@@ -1,6 +1,6 @@
 # django-rag
 
-A Django-based RAG knowledge base demo with local Qwen3.5 2B generation, asynchronous PDF ingestion, Pinecone vector retrieval, and a template-based chat interface.
+A Django-based RAG knowledge base demo with local LLM generation, asynchronous PDF ingestion, Pinecone vector retrieval, and a template-based chat interface.
 
 ## Overview
 
