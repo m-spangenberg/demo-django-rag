@@ -43,6 +43,12 @@ sequenceDiagram
 
 ## Demo
 
+Configure your environment variables in a `.env` file based on the provided `.env.example`.
+
+```bash
+cp .env.example .env
+```
+
 In order to test the demo, the repository includes a Docker Compose stack for PostgreSQL, Pinecone, Redis, Ollama, the Django demo-app, and the Celery worker. Ollama models are cached in a named volume to prevent re-downloading models. Give the stack some time to settle and then head to `http://localhost:8000` to access the demo interface. You can upload PDFs, which will be processed asynchronously, and then ask questions about their content.
 
 The default stack uses `OLLAMA_EMBED_MODEL=nomic-embed-text`, which produces 768-dimensional embeddings. If you switch embedding models, keep `PINECONE_DIMENSION` aligned with the model output and recreate the local index if it was already created with a different size.
