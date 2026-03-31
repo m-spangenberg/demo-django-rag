@@ -1,0 +1,83 @@
+{% extends "rag/base.html" %}
+
+{% block shell_class %}detail-page-shell{% endblock %}
+
+{% block header_metrics %}
+{% endblock %}
+
+{% block header_controls %}
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-header-main">
+        <div class="page-header-title-row">
+            <div class="page-header-title-group">
+                <span class="page-header-kicker">Document Detail</span>
+                <h1>{{ document.title }}</h1>
+            </div>
+            <a class="toolbar-link" href="{% url 'rag:home' %}#document-workspace">Back to workspace</a>
+        </div>
+        <div class="page-header-meta-row">
+            <div class="meta">
+                <span class="status-badge status-badge-{{ document.status }}">{{ document.get_status_display }}</span>
+                <span>{{ document.pinecone_namespace|default:"documents" }}</span>
+                <span>{{ document.chunk_count }} chunks</span>
+                <span>{{ document.page_count }} pages</span>
+                <span>Processed: {% if document.processed_at %}Yes{% else %}No{% endif %}</span>
+                <span>Uploaded {{ document.uploaded_at|date:"M j, Y · H:i" }}</span>
+            </div>
+            <div class="action-row">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reindex">
+                    <button type="submit" {% if document.status == "processing" %}class="button-muted" disabled{% endif %}>
+                        {% if document.status == "processing" %}Re-index unavailable{% else %}Re-index document{% endif %}
+                    </button>
+                </form>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <button type="submit" class="button-danger">Delete document</button>
+                </form>
+            </div>
+        </div>
+        {% if document.error_message %}
+            <p class="danger">{{ document.error_message }}</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="detail-layout">
+    <div class="main-workspace panel">
+        <div class="section-heading">
+            <div>
+                <h2>Indexed Chunks</h2>
+                <p class="section-copy">These passages are currently available to retrieval and grounding. Open this view when answers look thin, citations seem off, or a document needs to be re-run.</p>
+            </div>
+        </div>
+        <div class="cards">
+            {% for chunk in chunks %}
+                <article class="chunk-card">
+                    <div class="chunk-row">
+                        <strong>Chunk {{ chunk.chunk_index }}</strong>
+                        <div class="meta">
+                            <span>Page {{ chunk.page_number }}</span>
+                            <span class="chunk-vector-id">{{ chunk.vector_id }}</span>
+                        </div>
+                    </div>
+                    <p class="chunk-text">{{ chunk.text_preview }}</p>
+                </article>
+            {% empty %}
+                <div class="empty-state">
+                    <p class="muted">No chunks are indexed yet. Wait for processing to complete or run a re-index if this document should already be available.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</section>
+{% endblock %}
+
+{% block runtime_footer %}
+{% endblock %}

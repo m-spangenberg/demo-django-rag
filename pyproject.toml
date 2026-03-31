@@ -1,0 +1,39 @@
+[project]
+name = "django-rag"
+version = "0.1.0"
+description = "Django RAG demo with local Llama 3.2 3B inference, async PDF ingestion, and Pinecone retrieval."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "celery>=5.4,<6.0",
+    "django>=5.1,<5.3",
+    "langchain>=0.3.20,<0.4.0",
+    "langchain-core>=0.3.45,<0.4.0",
+    "langchain-ollama>=0.2.3,<0.3.0",
+    "pinecone>=6.0.2,<7.0.0",
+    "pillow>=11.1.0,<12.0.0",
+    "psycopg[binary]>=3.2.6,<4.0.0",
+    "pypdf>=5.4.0,<6.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+    "redis>=5.2.1,<6.0.0",
+    "requests>=2.32.3,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.11.2,<0.12.0",
+]
+local-embeddings = [
+    "sentence-transformers>=3.4.1,<4.0.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

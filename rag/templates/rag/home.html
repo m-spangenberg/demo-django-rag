@@ -1,0 +1,145 @@
+{% extends "rag/base.html" %}
+
+{% block header_metrics %}
+{% endblock %}
+
+{% block content %}
+
+<section class="workspace-layout">
+    <div class="main-workspace">
+        <div class="panel composer">
+            <div class="section-heading">
+                <div>
+                    <h2>Ask Workspace</h2>
+                    <p class="section-copy">Ask for summaries, comparisons, or exact details.</p>
+                </div>
+            </div>
+            <form method="post" action="{% url 'rag:chat' %}" class="composer-form">
+                {% csrf_token %}
+                {{ chat_form.question }}
+                <div class="composer-foot">
+                    <p class="helper-text">Best results come from specific questions that mention entities, sections, dates, or topics.</p>
+                    <button type="submit">Generate answer</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel">
+            <div class="section-heading">
+                <div>
+                    <h2>Answer Feed</h2>
+                    <p class="section-copy">Recent answers stay anchored to their source passages so you can verify what the model used and where it came from.</p>
+                </div>
+            </div>
+            <div class="message-list">
+                {% for exchange in exchanges %}
+                    <article class="answer-card {% if not exchange.answer %}answer-card-pending{% endif %}">
+                        <div class="answer-row">
+                            <div class="answer-heading">
+                                <span class="status-pill">Question</span>
+                                <h3>{{ exchange.question }}</h3>
+                            </div>
+                            {% if exchange.sources %}
+                                <span class="status-badge">{{ exchange.sources|length }} citations</span>
+                            {% endif %}
+                        </div>
+                        <p class="answer-body">{{ exchange.answer|default:"Pending answer" }}</p>
+                        {% if exchange.sources %}
+                            <div class="source-list">
+                                {% for source in exchange.sources %}
+                                    <div class="source-card {% if source.score >= 0.8 %}source-card-strong{% elif source.score >= 0.55 %}source-card-medium{% else %}source-card-soft{% endif %}">
+                                        <div class="source-card-top">
+                                            <div class="source-title-wrap">
+                                                <div class="source-title">{{ source.title }}</div>
+                                                <div class="meta source-meta">
+                                                    <span>Page {{ source.page_number }}</span>
+                                                    {% if source.has_chunk_index %}
+                                                        <span>Chunk {{ source.chunk_index }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <span class="source-score {% if source.score >= 0.8 %}source-score-strong{% elif source.score >= 0.55 %}source-score-medium{% else %}source-score-soft{% endif %}">Score {{ source.score|floatformat:2 }}</span>
+                                        </div>
+                                        {% if source.snippet %}
+                                            <p class="source-snippet">{{ source.snippet }}</p>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </article>
+                {% empty %}
+                    <div class="empty-state">
+                        <p class="muted">No answers yet. Queue a document, wait for indexing to finish, then ask a focused question from the workspace above.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <aside class="sidebar stack">
+        <div class="panel">
+            <div class="section-heading">
+                <div>
+                    <h2>Ingest Documents</h2>
+                    <p class="section-copy">Add a PDF document.</p>
+                </div>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="field-stack">
+                    {{ upload_form.title.label_tag }}
+                    {{ upload_form.title }}
+                </div>
+                <div class="field-stack">
+                    {{ upload_form.pdf.label_tag }}
+                    {{ upload_form.pdf }}
+                </div>
+                <button type="submit">Queue document</button>
+            </form>
+        </div>
+
+        <div class="panel" id="document-workspace">
+            <div class="section-heading">
+                <div>
+                    <h2>Document Workspace</h2>
+                    <p class="section-copy">Processed documents are below.</p>
+                </div>
+            </div>
+            <div class="list-stack">
+                {% for document in documents %}
+                    <div class="doc-list-item doc-status-{{ document.status }}">
+                        <div class="doc-row">
+                            <div class="doc-summary">
+                                <a class="doc-title" href="{% url 'rag:document-detail' document.pk %}">{{ document.title }}</a>
+                            </div>
+                            <span class="status-badge status-badge-{{ document.status }}">{{ document.get_status_display }}</span>
+                        </div>
+                        <div class="meta">
+                            <span>{{ document.chunk_count }} chunks</span>
+                            <span>{{ document.page_count }} pages</span>
+                            <span>Uploaded {{ document.uploaded_at|date:"M j, Y" }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="empty-state">
+                        <p class="muted">No documents uploaded yet. Start with a PDF above so the workspace has content to retrieve against.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </aside>
+</section>
+{% endblock %}
+
+{% block runtime_footer %}
+<div class="footer-runtime">
+    <div class="runtime-items">
+        <span class="runtime-item">Indexed documents: {{ documents|length }}</span>
+        <span class="runtime-item">Recent answers: {{ exchanges|length }}</span>
+        <span class="runtime-item">Chat: {{ runtime_status.chat_model }}</span>
+        <span class="runtime-item">Embeddings: {{ runtime_status.embedding_backend }} / {{ runtime_status.embedding_model }}</span>
+        <span class="runtime-item">Ollama: {% if runtime_status.ollama_reachable %}Ready{% else %}Unavailable{% endif %}</span>
+    </div>
+</div>
+{% endblock %}

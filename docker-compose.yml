@@ -1,0 +1,111 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: django_rag
+      POSTGRES_USER: django
+      POSTGRES_PASSWORD: django
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U django -d django_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pinecone:
+    image: ghcr.io/pinecone-io/pinecone-local:latest
+    environment: 
+      PORT: 5080
+      PINECONE_HOST: pinecone.local
+    ports: 
+      - "5080-5090:5080-5090"
+    platform: linux/amd64
+    networks:
+      default:
+        aliases:
+          - pinecone.local
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    env_file:
+      - .env
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./docker/ollama-init.sh:/usr/local/bin/ollama-init.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/ollama-init.sh"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "ollama show ${OLLAMA_CHAT_MODEL:-llama3.2:3b} >/dev/null 2>&1 && ollama show ${OLLAMA_EMBED_MODEL:-nomic-embed-text} >/dev/null 2>&1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: ${OLLAMA_STARTUP_DELAY:-800}s
+
+  web:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - web_venv:/app/.venv
+      - uv_cache:/root/.cache/uv
+    env_file:
+      - .env
+    command: >-
+      sh -c "uv sync &&
+      uv run python manage.py migrate &&
+      uv run python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - worker_venv:/app/.venv
+      - uv_cache:/root/.cache/uv
+    env_file:
+      - .env
+    command: >-
+      sh -c "uv sync &&
+      uv run celery -A config worker -l info"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  ollama_data:
+  uv_cache:
+  web_venv:
+  worker_venv:
+  
