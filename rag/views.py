@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
-from .forms import ChatQueryForm, DocumentActionForm, UploadDocumentForm
+from .forms import ChatQueryForm, DocumentActionForm, HomeActionForm, UploadDocumentForm
 from .models import ChatExchange, Document
 from .services.llm import get_chat_client, get_runtime_status
 from .services.retrieval import RetrievalMatch, get_vector_store
@@ -46,6 +46,16 @@ class HomeView(View):
         return render(request, self.template_name, context)
 
     def post(self, request):
+        if request.POST.get("action"):
+            action_form = HomeActionForm(request.POST)
+            if not action_form.is_valid():
+                messages.error(request, "Invalid home action.")
+                return redirect("rag:home")
+
+            ChatExchange.objects.all().delete()
+            messages.success(request, "Recent answer feed cleared.")
+            return redirect("rag:home")
+
         form = UploadDocumentForm(request.POST, request.FILES)
         if not form.is_valid():
             context = {
