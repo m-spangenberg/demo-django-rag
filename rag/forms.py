@@ -2,7 +2,10 @@ from django import forms
 
 
 class UploadDocumentForm(forms.Form):
-    title = forms.CharField(max_length=255)
+    title = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={"placeholder": "Document title"}),
+    )
     pdf = forms.FileField(help_text="Upload a PDF file for ingestion.")
 
     def clean_pdf(self):

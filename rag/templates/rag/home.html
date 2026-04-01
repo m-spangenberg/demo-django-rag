@@ -3,6 +3,21 @@
 {% block header_metrics %}
 {% endblock %}
 
+{% block header_controls %}
+<form method="post" enctype="multipart/form-data" class="nav-upload-form">
+    {% csrf_token %}
+    <div class="field-stack">
+        {{ upload_form.title.label_tag }}
+        {{ upload_form.title }}
+    </div>
+    <div class="field-stack">
+        {{ upload_form.pdf.label_tag }}
+        {{ upload_form.pdf }}
+    </div>
+    <button type="submit">Upload PDF</button>
+</form>
+{% endblock %}
+
 {% block content %}
 
 <section class="workspace-layout">
@@ -87,27 +102,6 @@
     </div>
 
     <aside class="sidebar stack">
-        <div class="panel">
-            <div class="section-heading">
-                <div>
-                    <h2>Ingest Documents</h2>
-                    <p class="section-copy">Add a PDF document.</p>
-                </div>
-            </div>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="field-stack">
-                    {{ upload_form.title.label_tag }}
-                    {{ upload_form.title }}
-                </div>
-                <div class="field-stack">
-                    {{ upload_form.pdf.label_tag }}
-                    {{ upload_form.pdf }}
-                </div>
-                <button type="submit">Queue document</button>
-            </form>
-        </div>
-
         <div class="panel" id="document-workspace">
             <div class="section-heading">
                 <div>
