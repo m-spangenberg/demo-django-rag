@@ -107,6 +107,37 @@ class PineconeVectorStore:
             return
         self.index.delete(ids=vector_ids, namespace=namespace)
 
+    def _select_diverse_matches(
+        self,
+        *,
+        matches: list[RetrievalMatch],
+        limit: int,
+    ) -> list[RetrievalMatch]:
+        if len(matches) <= limit:
+            return matches
+
+        selected: list[RetrievalMatch] = []
+        per_document_counts: dict[object, int] = {}
+        max_per_document = 1
+
+        while len(selected) < limit:
+            added_in_round = False
+            for match in matches:
+                if match in selected:
+                    continue
+                document_id = match.metadata.get("document_id") or match.id
+                if per_document_counts.get(document_id, 0) >= max_per_document:
+                    continue
+                selected.append(match)
+                per_document_counts[document_id] = per_document_counts.get(document_id, 0) + 1
+                added_in_round = True
+                if len(selected) == limit:
+                    break
+            if not added_in_round:
+                max_per_document += 1
+
+        return selected
+
     def query(
         self,
         *,
@@ -116,13 +147,14 @@ class PineconeVectorStore:
     ) -> list[RetrievalMatch]:
         embedding = get_embedding_client().embed_query(question)
         resolved_top_k = top_k or settings.RAG_TOP_K
+        candidate_top_k = max(resolved_top_k * 4, resolved_top_k)
         query_namespaces = namespaces or [settings.PINECONE_NAMESPACE]
 
         all_matches: list[RetrievalMatch] = []
         for namespace in dict.fromkeys(query_namespaces):
             response = self.index.query(
                 vector=embedding,
-                top_k=resolved_top_k,
+                top_k=candidate_top_k,
                 include_metadata=True,
                 namespace=namespace,
             )
@@ -140,7 +172,7 @@ class PineconeVectorStore:
             )
 
         all_matches.sort(key=lambda match: match.score, reverse=True)
-        return all_matches[:resolved_top_k]
+        return self._select_diverse_matches(matches=all_matches, limit=resolved_top_k)
 
     def render_context(self, matches: list[RetrievalMatch]) -> str:
         parts: list[str] = []
