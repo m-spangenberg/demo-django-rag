@@ -107,26 +107,40 @@ class PineconeVectorStore:
             return
         self.index.delete(ids=vector_ids, namespace=namespace)
 
-    def query(self, *, question: str, top_k: int | None = None) -> list[RetrievalMatch]:
+    def query(
+        self,
+        *,
+        question: str,
+        top_k: int | None = None,
+        namespaces: list[str] | None = None,
+    ) -> list[RetrievalMatch]:
         embedding = get_embedding_client().embed_query(question)
-        response = self.index.query(
-            vector=embedding,
-            top_k=top_k or settings.RAG_TOP_K,
-            include_metadata=True,
-            namespace=settings.PINECONE_NAMESPACE,
-        )
-        if isinstance(response, dict):
-            matches = cast(dict[str, Any], response).get("matches", [])
-        else:
-            matches = getattr(response, "matches", [])
-        return [
-            RetrievalMatch(
-                id=cast(str, match["id"]),
-                score=float(match["score"]),
-                metadata=cast(dict[str, Any], match.get("metadata", {})),
+        resolved_top_k = top_k or settings.RAG_TOP_K
+        query_namespaces = namespaces or [settings.PINECONE_NAMESPACE]
+
+        all_matches: list[RetrievalMatch] = []
+        for namespace in dict.fromkeys(query_namespaces):
+            response = self.index.query(
+                vector=embedding,
+                top_k=resolved_top_k,
+                include_metadata=True,
+                namespace=namespace,
             )
-            for match in matches
-        ]
+            if isinstance(response, dict):
+                matches = cast(dict[str, Any], response).get("matches", [])
+            else:
+                matches = getattr(response, "matches", [])
+            all_matches.extend(
+                RetrievalMatch(
+                    id=cast(str, match["id"]),
+                    score=float(match["score"]),
+                    metadata=cast(dict[str, Any], match.get("metadata", {})),
+                )
+                for match in matches
+            )
+
+        all_matches.sort(key=lambda match: match.score, reverse=True)
+        return all_matches[:resolved_top_k]
 
     def render_context(self, matches: list[RetrievalMatch]) -> str:
         parts: list[str] = []
