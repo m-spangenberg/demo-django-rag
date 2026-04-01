@@ -2,6 +2,8 @@
 
 A Django-based RAG knowledge base demo with local LLM generation, asynchronous PDF ingestion, Pinecone vector retrieval, and a template-based chat interface.
 
+[![Screenshot of the demo interface](docs/screenshots/django-rag.png)](docs/screenshots/django-rag.png)
+
 ## Overview
 
 This high-level sequence diagram illustrates the main interactions between components in the system:
