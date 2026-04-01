@@ -30,6 +30,15 @@
                     <h2>Answer Feed</h2>
                     <p class="section-copy">Recent answers stay anchored to their source passages so you can verify what the model used and where it came from.</p>
                 </div>
+                {% if exchanges %}
+                    <div class="section-heading-actions">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="clear_answers">
+                            <button type="submit" class="button-muted">Clear recent answers</button>
+                        </form>
+                    </div>
+                {% endif %}
             </div>
             <div class="message-list">
                 {% for exchange in exchanges %}
