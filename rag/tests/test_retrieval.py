@@ -47,3 +47,44 @@ class PineconeVectorStoreTests(SimpleTestCase):
 
         with self.assertRaises(RuntimeError):
             PineconeVectorStore()
+
+    @override_settings(
+        PINECONE_API_KEY="pclocal",
+        PINECONE_URL="http://pinecone.local:5080",
+        PINECONE_INDEX_HOST="http://pinecone.local:5081",
+        PINECONE_INDEX="django-rag",
+        PINECONE_METRIC="cosine",
+        PINECONE_NAMESPACE="documents",
+        RAG_TOP_K=2,
+    )
+    @patch("rag.services.retrieval.get_embedding_dimension", return_value=768)
+    @patch("rag.services.retrieval.get_embedding_client")
+    @patch("rag.services.retrieval.Pinecone")
+    def test_query_merges_results_across_namespaces(self, mock_pinecone, mock_embedding_client, mock_dimension):
+        client = MagicMock()
+        client.list_indexes.return_value = SimpleNamespace(names=lambda: ["django-rag"])
+        client.describe_index.return_value = {"dimension": 768}
+        index = MagicMock()
+        index.query.side_effect = [
+            {
+                "matches": [
+                    {"id": "doc-1", "score": 0.41, "metadata": {"title": "First"}},
+                ]
+            },
+            {
+                "matches": [
+                    {"id": "doc-2", "score": 0.93, "metadata": {"title": "Second"}},
+                    {"id": "doc-3", "score": 0.72, "metadata": {"title": "Third"}},
+                ]
+            },
+        ]
+        client.Index.return_value = index
+        mock_pinecone.return_value = client
+        mock_embedding_client.return_value.embed_query.return_value = [0.1, 0.2, 0.3]
+
+        store = PineconeVectorStore()
+
+        matches = store.query(question="What changed?", namespaces=["ns-a", "ns-b"])
+
+        self.assertEqual([match.id for match in matches], ["doc-2", "doc-3"])
+        self.assertEqual(index.query.call_count, 2)
