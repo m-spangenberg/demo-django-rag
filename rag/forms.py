@@ -15,7 +15,13 @@ class UploadDocumentForm(forms.Form):
 class ChatQueryForm(forms.Form):
     question = forms.CharField(
         max_length=1000,
-        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Ask a question about your PDFs"}),
+        widget=forms.Textarea(attrs={"rows": 1, "placeholder": "Ask a question about your PDFs"}),
+    )
+
+
+class HomeActionForm(forms.Form):
+    action = forms.ChoiceField(
+        choices=[("clear_answers", "Clear recent answers")],
     )
 
 
