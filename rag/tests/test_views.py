@@ -13,7 +13,7 @@ class HomeViewTests(TestCase):
         response = self.client.get(reverse("rag:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ask the indexed document set.")
+        self.assertContains(response, "Ask Workspace")
 
     def test_document_detail_renders(self):
         document = Document.objects.create(title="Demo PDF", source_file="documents/demo.pdf")
@@ -95,6 +95,29 @@ class HomeViewTests(TestCase):
         self.assertContains(response, "Page 4")
         self.assertContains(response, "Chunk 0")
         self.assertContains(response, "Evidence snippet from the stored answer.")
+
+    def test_home_post_clear_answers_removes_recent_feed(self):
+        ChatExchange.objects.create(
+            session_key="session-1",
+            question="First question?",
+            answer="First answer.",
+        )
+        ChatExchange.objects.create(
+            session_key="session-2",
+            question="Second question?",
+            answer="Second answer.",
+        )
+
+        response = self.client.post(reverse("rag:home"), {"action": "clear_answers"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(ChatExchange.objects.count(), 0)
+
+    def test_home_post_invalid_action_rejects_request(self):
+        response = self.client.post(reverse("rag:home"), {"action": "nope"}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid home action")
 
     def test_document_detail_post_rejects_reindex_while_processing(self):
         document = Document.objects.create(
