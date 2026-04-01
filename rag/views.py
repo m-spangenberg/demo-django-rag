@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -127,9 +128,18 @@ class ChatView(View):
             return redirect("rag:home")
 
         question = form.cleaned_data["question"]
+        stored_namespaces = list(
+            dict.fromkeys(
+                Document.objects.filter(status=Document.Status.READY)
+                .values_list("pinecone_namespace", flat=True)
+            )
+        )
+        namespaces = [namespace for namespace in stored_namespaces if namespace]
+        if not namespaces or any(not namespace for namespace in stored_namespaces):
+            namespaces.append(settings.PINECONE_NAMESPACE)
         try:
             vector_store = get_vector_store()
-            matches = vector_store.query(question=question)
+            matches = vector_store.query(question=question, namespaces=namespaces)
             context_text = vector_store.render_context(matches)
             chat_client = get_chat_client()
             answer = chat_client.answer(question=question, context=context_text)
