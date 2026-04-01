@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -59,6 +60,41 @@ class HomeViewTests(TestCase):
         self.assertEqual(exchange.sources[0]["chunk_index"], 3)
         self.assertEqual(exchange.sources[0]["score"], 0.947)
         self.assertIn("supporting snippet", exchange.sources[0]["snippet"])
+
+    def test_chat_post_queries_all_ready_document_namespaces(self):
+        Document.objects.create(
+            title="Doc One",
+            source_file="documents/doc-one.pdf",
+            status=Document.Status.READY,
+            pinecone_namespace="ns-one",
+        )
+        Document.objects.create(
+            title="Doc Two",
+            source_file="documents/doc-two.pdf",
+            status=Document.Status.READY,
+            pinecone_namespace="ns-two",
+        )
+        Document.objects.create(
+            title="Doc Three",
+            source_file="documents/doc-three.pdf",
+            status=Document.Status.READY,
+            pinecone_namespace="",
+        )
+
+        with patch("rag.views.get_vector_store") as mock_vector_store, patch(
+            "rag.views.get_chat_client"
+        ) as mock_chat_client:
+            mock_vector_store.return_value.query.return_value = []
+            mock_vector_store.return_value.render_context.return_value = "context"
+            mock_chat_client.return_value.answer.return_value = "Answer text"
+
+            response = self.client.post(reverse("rag:chat"), {"question": "What is this?"})
+
+        self.assertEqual(response.status_code, 302)
+        mock_vector_store.return_value.query.assert_called_once_with(
+            question="What is this?",
+            namespaces=["ns-one", "ns-two", settings.PINECONE_NAMESPACE],
+        )
 
     def test_document_detail_post_reindex_queues_task(self):
         document = Document.objects.create(title="Demo PDF", source_file="documents/demo.pdf")
